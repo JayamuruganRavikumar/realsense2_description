@@ -73,16 +73,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Bridge for depth camera image
-    bridge_camera_depth = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=[
-            '/camera/depth/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-        ],
-        output='screen'
-    )
-
     # Bridge for infrared cameras
     bridge_camera_infra1 = Node(
         package='ros_gz_bridge',
@@ -102,13 +92,46 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Bridge for camera info (optional but recommended)
+    # Bridge for camera info (color only)
     bridge_camera_info = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
             '/camera/color/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            '/camera/depth/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+        ],
+        output='screen'
+    )
+
+    # Bridge for RGBD camera (depth image, point cloud, camera info)
+    bridge_camera_rgbd = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=[
+            '/camera/rgbd/image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/rgbd/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/rgbd/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+            '/camera/rgbd/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+        ],
+        output='screen'
+    )
+    # Static transform: map Gazebo's auto-generated sensor frame to the URDF depth frame
+    # camera_depth_frame has X-forward (Gazebo convention), matching the rgbd sensor orientation
+    static_tf_rgbd = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=['0', '0', '0', '0', '0', '0',
+                   'camera_depth_frame',
+                   'realsense_d435/base_link/camera_rgbd'],
+        output='screen'
+    )
+
+    # Bridge TF from Gazebo so RViz gets the scoped frame names (realsense_d435/...)
+    bridge_tf = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=[
+            '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+            '/tf_static@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
         ],
         output='screen'
     )
@@ -130,9 +153,11 @@ def generate_launch_description():
         robot_state_publisher,
         spawn_entity,
         bridge_camera_color,
-        bridge_camera_depth,
+        bridge_camera_rgbd,
         bridge_camera_infra1,
         bridge_camera_infra2,
         bridge_camera_info,
+        bridge_tf,
+        static_tf_rgbd,
         # rviz,  # Uncomment to launch RViz
     ])
